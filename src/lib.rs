@@ -1,16 +1,20 @@
+use std::net::TcpListener;
+
 use actix_web::{get, App, HttpResponse, HttpServer, Responder};
+use actix_web::dev::Server;
 
 #[get("/health-check")]
 async fn health_check() -> impl Responder {
     HttpResponse::Ok().finish()
 }
 
-pub async fn run() -> std::io::Result<()> {
-    return HttpServer::new(|| {
+pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
+    let server = HttpServer::new(|| {
         App::new()
             .service(health_check)
     })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+    .listen(listener)?
+    .run();
+
+    Ok(server)
 }

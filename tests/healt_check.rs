@@ -1,9 +1,10 @@
+use std::net::TcpListener;
+
 #[tokio::test]
 async fn test_health_check_works() {
-    app().await.expect("Failed to instantiate App");
     let client = reqwest::Client::new();
     let response = client
-        .get("http://127.0.0.1/health-check")
+        .get(format!("{}/health-check", app()))
         .send()
         .await
         .expect("Failed to execute request");
@@ -11,6 +12,12 @@ async fn test_health_check_works() {
     assert!(response.status().is_success())
 }
 
-async fn app() -> std::io::Result<()> {
-    return stoic_newsletter::run().await
+fn app() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to create a tcp listnener");
+    let port = listener.local_addr().expect("Unable to get address of listener").port();
+
+    let server = stoic_newsletter::run(listener).expect("Failed to instantiate server");
+    tokio::spawn(server);
+
+    return format!("http://127.0.0.1:{}", port);
 }
