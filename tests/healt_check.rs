@@ -1,4 +1,5 @@
 use std::net::TcpListener;
+use stoic_newsletter::startup::run;
 
 #[tokio::test]
 async fn test_health_check_works() {
@@ -38,7 +39,7 @@ async fn test_subscribig_to_newsletter_with_invalid_data_returns_400() {
     let test_cases = [
         TestCase {payload: "name=le%20guin".to_string(), error: "Parse error: missing field `email`.".to_string()},
         TestCase {payload: "email=ursula_le_guin%40gmail.com".to_string(), error: "Parse error: missing field `name`.".to_string()},
-        TestCase {payload: "".to_string(), error: "missing both name and email".to_string()},
+        TestCase {payload: "".to_string(), error: "Parse error: missing field `name`.".to_string()},
     ];
 
     for case in test_cases {
@@ -61,7 +62,7 @@ fn app() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to create a tcp listnener");
     let port = listener.local_addr().expect("Unable to get address of listener").port();
 
-    let server = stoic_newsletter::run(listener).expect("Failed to instantiate server");
+    let server = run(listener).expect("Failed to instantiate server");
     tokio::spawn(server);
 
     return format!("http://127.0.0.1:{}", port);
