@@ -1,5 +1,7 @@
 use std::net::TcpListener;
+use sqlx::{PgConnection, Connection, Row};
 use stoic_newsletter::startup::run;
+use stoic_newsletter::config::get_config;
 
 #[tokio::test]
 async fn test_health_check_works() {
@@ -16,6 +18,11 @@ async fn test_health_check_works() {
 #[tokio::test]
 async fn test_subscribig_to_newsletter_works() {
     let client = reqwest::Client::new();
+    let config = get_config().expect("Failed to read config");
+    let connection_string = config.database.connection_string();
+    let mut connection = PgConnection::connect(&connection_string)
+        .await
+        .expect("Failed to connecto to postgres");
     let response = client
         .post(format!("{}/subscribe", app()))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -25,6 +32,14 @@ async fn test_subscribig_to_newsletter_works() {
         .expect("Failed to send request");
 
     assert!(response.status().is_success());
+
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions")
+    .fetch_one(&mut connection)
+    .await
+    .expect("Failed to fetch saved subscriptions.");
+
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+    assert_eq!(saved.name, "le guin");
 }
 
 #[tokio::test]
