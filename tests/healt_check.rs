@@ -1,5 +1,5 @@
 use std::net::TcpListener;
-use sqlx::{PgConnection, Connection, Row};
+use sqlx::{PgConnection, Connection};
 use stoic_newsletter::startup::run;
 use stoic_newsletter::config::get_config;
 
