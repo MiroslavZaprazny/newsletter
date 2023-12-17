@@ -1,4 +1,4 @@
-use actix_web::{post, HttpResponse, Responder, web};
+use actix_web::{post, web, HttpResponse, Responder};
 use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -6,12 +6,16 @@ use uuid::Uuid;
 #[derive(serde::Deserialize)]
 struct SubscribeFormData {
     name: String,
-    email: String
+    email: String,
 }
 
 #[post("/subscribe")]
-async fn subscribe(form: web::Form<SubscribeFormData>, connection: web::Data<PgPool>) -> impl Responder {
-    let result = sqlx::query!(r#"
+async fn subscribe(
+    form: web::Form<SubscribeFormData>,
+    connection: web::Data<PgPool>,
+) -> impl Responder {
+    let result = sqlx::query!(
+        r#"
         INSERT INTO subscriptions(id, email, name, subscribed_at)
         VALUES($1, $2, $3, $4)
         "#,
@@ -19,14 +23,15 @@ async fn subscribe(form: web::Form<SubscribeFormData>, connection: web::Data<PgP
         form.email,
         form.name,
         Utc::now()
-    ).execute(connection.get_ref())
+    )
+    .execute(connection.get_ref())
     .await;
 
     return match result {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
             println!("Failed to execute query: {}", e);
-            return HttpResponse::InternalServerError().finish()
+            return HttpResponse::InternalServerError().finish();
         }
-    }
+    };
 }

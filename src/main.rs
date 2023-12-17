@@ -1,7 +1,7 @@
 use std::net::TcpListener;
 
+use ::stoic_newsletter::startup::run;
 use sqlx::PgPool;
-use::stoic_newsletter::startup::run;
 use stoic_newsletter::config::get_config;
 
 #[actix_web::main]
@@ -15,4 +15,3 @@ async fn main() -> std::io::Result<()> {
 
     run(listener, connection_pool)?.await
 }
-
