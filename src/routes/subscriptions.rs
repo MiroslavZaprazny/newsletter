@@ -1,7 +1,7 @@
 use actix_web::{post, HttpResponse, Responder, web};
+use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
-use chrono::Utc;
 
 #[derive(serde::Deserialize)]
 struct SubscribeFormData {
