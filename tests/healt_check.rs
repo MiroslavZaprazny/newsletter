@@ -99,10 +99,10 @@ async fn app() -> TestApp {
     let server = run(listener, connection_pool.clone()).expect("Failed to instantiate server");
     tokio::spawn(server);
 
-    return TestApp {
+    TestApp {
         address: format!("http://127.0.0.1:{}", port),
         db_pool: connection_pool,
-    };
+    }
 }
 
 pub async fn configure_db(settings: &DatabaseSettings) -> PgPool {
@@ -124,5 +124,5 @@ pub async fn configure_db(settings: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to execute migrations");
 
-    return connection_pool;
+    connection_pool
 }

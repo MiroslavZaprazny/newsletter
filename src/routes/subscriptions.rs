@@ -27,11 +27,11 @@ async fn subscribe(
     .execute(connection.get_ref())
     .await;
 
-    return match result {
+    match result {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
             println!("Failed to execute query: {}", e);
-            return HttpResponse::InternalServerError().finish();
+            HttpResponse::InternalServerError().finish()
         }
-    };
+    }
 }
