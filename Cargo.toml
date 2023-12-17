@@ -15,4 +15,7 @@ sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio-r
 config = "0.13"
 chrono = "0.4.31"
 uuid = { version = "1.6.1", features = ["v4"] }
+env_logger = "0.10.1"
+log = "0.4"
+tracing = { version = "0.1", features = ["log"] }
 
