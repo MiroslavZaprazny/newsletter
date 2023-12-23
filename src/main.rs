@@ -15,6 +15,7 @@ async fn main() -> std::io::Result<()> {
     let address = format!("{}:{}", config.application.host, config.application.port);
     let listener = TcpListener::bind(address).expect("Failed to create a tcp listnener");
     init_subscriber(get_subscriber());
+    println!("Running on {} {}", config.application.host, config.application.port);
 
     run(listener, connection_pool)?.await
 }
