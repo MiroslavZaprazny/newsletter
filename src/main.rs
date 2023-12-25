@@ -10,6 +10,7 @@ use stoic_newsletter::{
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let config = get_config().expect("Failed to retrieve app configuration");
+    println!("config: {:?}", config);
     let connection_pool = PgPool::connect_lazy(&config.database.connection_string())
         .expect("Failed to connect to db");
     let address = format!("{}:{}", config.application.host, config.application.port);
