@@ -10,12 +10,10 @@ use stoic_newsletter::{
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let config = get_config().expect("Failed to retrieve app configuration");
-    let connection_pool = PgPool::connect_lazy(&config.database.connection_string())
-        .expect("Failed to connect to db");
+    let connection_pool = PgPool::connect_lazy_with(config.database.with_db());
     let address = format!("{}:{}", config.application.host, config.application.port);
     let listener = TcpListener::bind(address).expect("Failed to create a tcp listnener");
     init_subscriber(get_subscriber());
-    println!("Running on {} {}", config.application.host, config.application.port);
 
     run(listener, connection_pool)?.await
 }
