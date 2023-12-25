@@ -11,6 +11,7 @@ pub struct Settings {
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub database_name: String,
@@ -29,7 +30,7 @@ pub enum Enviroment {
 }
 
 impl DatabaseSettings {
-    pub fn without_db(&self) -> PgConnectOptions {
+    pub fn without_db(&self) -> PgConnectOptions{
         let require_ssl = if self.require_ssl {
             PgSslMode::Require
         } else {
