@@ -1,5 +1,3 @@
-use sqlx::postgres::{PgConnectOptions, PgSslMode};
-
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
@@ -28,25 +26,24 @@ pub enum Enviroment {
 }
 
 impl DatabaseSettings {
-    pub fn without_db(&self) -> PgConnectOptions{
+    pub fn connection_string(&self) -> String {
         let require_ssl = if self.require_ssl {
-            PgSslMode::Require
+            String::from("require")
         } else {
-            PgSslMode::Prefer
+            String::from("prefer")
         };
-        println!("port: {}", self.port);
-        let port = self.port.parse::<u16>().expect("Failed to cast port to number");
 
-        PgConnectOptions::new()
-            .host(&self.host)
-            .port(port)
-            .username(&self.username)
-            .password(&self.password)
-            .ssl_mode(require_ssl)
+        format!(
+            "postgres://{}:{}@{}:{}/{}?sslmode={}",
+            self.username, self.password, self.host, self.port, self.database_name, require_ssl
+        )
     }
 
-    pub fn with_db(&self) -> PgConnectOptions {
-        self.without_db().database(&self.database_name)
+    pub fn without_db(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.username, self.password, self.host, self.port
+        )
     }
 }
 
