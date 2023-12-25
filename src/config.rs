@@ -34,6 +34,7 @@ impl DatabaseSettings {
         } else {
             PgSslMode::Prefer
         };
+        println!("port: {}", self.port);
         let port = self.port.parse::<u16>().expect("Failed to cast port to number");
 
         PgConnectOptions::new()
