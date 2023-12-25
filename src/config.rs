@@ -1,4 +1,3 @@
-use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 #[derive(serde::Deserialize)]
@@ -11,8 +10,7 @@ pub struct Settings {
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
-    pub port: u16,
+    pub port: String,
     pub host: String,
     pub database_name: String,
     pub require_ssl: bool,
@@ -36,10 +34,11 @@ impl DatabaseSettings {
         } else {
             PgSslMode::Prefer
         };
+        let port = self.port.parse::<u16>().expect("Failed to cast port to number");
 
         PgConnectOptions::new()
             .host(&self.host)
-            .port(self.port)
+            .port(port)
             .username(&self.username)
             .password(&self.password)
             .ssl_mode(require_ssl)
