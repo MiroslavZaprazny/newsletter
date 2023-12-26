@@ -74,6 +74,10 @@ async fn test_subscribing_to_newsletter_with_invalid_data_returns_400() {
             payload: format!("name={}&email=testemail", " "),
             error: "".to_string(),
         },
+        TestCase {
+            payload: format!("name=validnam&email={}", "invalidemail"),
+            error: "".to_string(),
+        },
     ];
 
     for case in test_cases {
