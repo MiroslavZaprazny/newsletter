@@ -10,6 +10,16 @@ struct SubscribeFormData {
     email: String,
 }
 
+impl TryFrom<SubscribeFormData> for Subscriber {
+    type Error = String;
+    fn try_from(value: SubscribeFormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+
+        Ok(Self{name, email})
+    }
+}
+
 #[post("/subscribe")]
 #[tracing::instrument(
     name = "Adding a new subscriber", skip(form, connection),
@@ -22,19 +32,12 @@ async fn subscribe(
     form: web::Form<SubscribeFormData>,
     connection: web::Data<PgPool>,
 ) -> impl Responder {
-    let name = match SubscriberName::parse(form.0.name) {
+    let subscriber: Subscriber = match Subscriber::try_from(form.0) {
         Ok(v) => v,
-        Err(_) => return HttpResponse::BadRequest().finish(),
+        Err(_) => return HttpResponse::BadRequest().finish()
     };
 
-    let email = match SubscriberEmail::parse(form.0.email) {
-        Ok(v) => v,
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
-
-    let new_subscriber = Subscriber { name, email };
-
-    return match insert_subscriber(&connection, &new_subscriber).await {
+    return match insert_subscriber(&connection, &subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
             tracing::error!("Failed to save details {:?}", e);
