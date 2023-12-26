@@ -32,7 +32,7 @@ async fn subscribe(
     form: web::Form<SubscribeFormData>,
     connection: web::Data<PgPool>,
 ) -> impl Responder {
-    let subscriber: Subscriber = match Subscriber::try_from(form.0) {
+    let subscriber = match Subscriber::try_from(form.0) {
         Ok(v) => v,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
