@@ -1,3 +1,4 @@
+use crate::domain::{Subscriber, SubscriberEmail, SubscriberName};
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::Utc;
 use sqlx::PgPool;
@@ -9,10 +10,19 @@ struct SubscribeFormData {
     email: String,
 }
 
+impl TryFrom<SubscribeFormData> for Subscriber {
+    type Error = String;
+    fn try_from(value: SubscribeFormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+
+        Ok(Self { name, email })
+    }
+}
+
 #[post("/subscribe")]
 #[tracing::instrument(
-    name = "Adding a new subscriber",
-    skip(form, connection),
+    name = "Adding a new subscriber", skip(form, connection),
     fields(
         subscriber_name = %form.name,
         subscriber_email = %form.email
@@ -22,10 +32,15 @@ async fn subscribe(
     form: web::Form<SubscribeFormData>,
     connection: web::Data<PgPool>,
 ) -> impl Responder {
-    return match insert_subscriber(&connection, &form).await {
+    let subscriber = match Subscriber::try_from(form.0) {
+        Ok(v) => v,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+
+    return match insert_subscriber(&connection, &subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
-            tracing::error!("Failed to save details {:?} {:?}", form, e);
+            tracing::error!("Failed to save details {:?}", e);
             HttpResponse::InternalServerError().finish()
         }
     };
@@ -35,15 +50,15 @@ async fn subscribe(
     name = "Saving new subscriber details in the database",
     skip(form, pool)
 )]
-async fn insert_subscriber(pool: &PgPool, form: &SubscribeFormData) -> Result<(), sqlx::Error> {
+async fn insert_subscriber(pool: &PgPool, form: &Subscriber) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO subscriptions(id, email, name, subscribed_at)
         VALUES($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        form.email.as_ref(),
+        form.name.as_ref(),
         Utc::now()
     )
     .execute(pool)
