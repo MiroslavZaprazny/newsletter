@@ -16,7 +16,7 @@ impl TryFrom<SubscribeFormData> for Subscriber {
         let name = SubscriberName::parse(value.name)?;
         let email = SubscriberEmail::parse(value.email)?;
 
-        Ok(Self{name, email})
+        Ok(Self { name, email })
     }
 }
 
@@ -34,7 +34,7 @@ async fn subscribe(
 ) -> impl Responder {
     let subscriber: Subscriber = match Subscriber::try_from(form.0) {
         Ok(v) => v,
-        Err(_) => return HttpResponse::BadRequest().finish()
+        Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
     return match insert_subscriber(&connection, &subscriber).await {
