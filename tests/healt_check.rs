@@ -22,7 +22,7 @@ async fn test_health_check_works() {
 }
 
 #[tokio::test]
-async fn test_subscribig_to_newsletter_works() {
+async fn test_subscribing_to_newsletter_works() {
     let client = reqwest::Client::new();
     let app = app().await;
     let response = client
@@ -45,7 +45,7 @@ async fn test_subscribig_to_newsletter_works() {
 }
 
 #[tokio::test]
-async fn test_subscribig_to_newsletter_with_invalid_data_returns_400() {
+async fn test_subscribing_to_newsletter_with_invalid_data_returns_400() {
     let client = reqwest::Client::new();
     let app = app().await;
     struct TestCase {
@@ -65,6 +65,14 @@ async fn test_subscribig_to_newsletter_with_invalid_data_returns_400() {
         TestCase {
             payload: "".to_string(),
             error: "Parse error: missing field `name`.".to_string(),
+        },
+        TestCase {
+            payload: format!("name={}&email=testemail", ""),
+            error: "".to_string(),
+        },
+        TestCase {
+            payload: format!("name={}&email=testemail", " "),
+            error: "".to_string(),
         },
     ];
 
