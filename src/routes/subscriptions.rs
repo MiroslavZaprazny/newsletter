@@ -27,11 +27,11 @@ impl TryFrom<SubscribeFormData> for Subscriber {
 async fn test(email_client: web::Data<EmailClient>) -> impl Responder {
     let recipient =
         Email::parse(String::from("miro.zaprazny8@gmail.com")).expect("Failed to parse email");
-    let res = email_client
+    email_client
         .send_email(recipient, "test email", "testing")
-        .await;
+        .await.expect("Failed to send email");
 
-    return HttpResponse::Ok().finish();
+    HttpResponse::Ok().finish()
 }
 
 #[post("/subscribe")]
