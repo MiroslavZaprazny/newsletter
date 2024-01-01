@@ -27,7 +27,7 @@ struct From {
 #[derive(serde::Serialize)]
 struct Content {
     value: String,
-    r#type: String
+    r#type: String,
 }
 
 #[derive(serde::Serialize)]
@@ -35,26 +35,57 @@ struct SendEmailPayload {
     personalizations: [Personalizations; 1],
     from: From,
     subject: String,
-    content: [Content; 1]
+    content: [Content; 1],
 }
 
 impl EmailClient {
     pub fn new(url: String, sender: Email, auth_code: String) -> Self {
-        Self { client: Client::new(), url, sender, auth_code }
+        Self {
+            client: Client::new(),
+            url,
+            sender,
+            auth_code,
+        }
     }
 
-    pub async fn send_email(&self, recipient: Email, subject: &str, body: &str) -> Result<(), String> {
+    pub async fn send_email(
+        &self,
+        recipient: Email,
+        subject: &str,
+        body: &str,
+    ) -> Result<(), String> {
         let url = format!("{}/mail/send", self.url);
         let body = SendEmailPayload {
-            personalizations: [Personalizations { to: [To {email: recipient.as_ref().to_owned() }] }],
-            from: From { email: self.sender.as_ref().to_owned() },
+            personalizations: [Personalizations {
+                to: [To {
+                    email: recipient.as_ref().to_owned(),
+                }],
+            }],
+            from: From {
+                email: self.sender.as_ref().to_owned(),
+            },
             subject: subject.to_owned(),
-            content: [Content { value: body.to_owned(), r#type: String::from("text/html")}]
+            content: [Content {
+                value: body.to_owned(),
+                r#type: String::from("text/html"),
+            }],
         };
         let bearer_token = format!("Bearer {}", self.auth_code);
 
-        let res = self.client.post(url).header("Authorization", bearer_token).json(&body).send().await;
-        println!("emial response: {}", res.unwrap().text().await.expect("Cannot decode response body"));
+        let res = self
+            .client
+            .post(url)
+            .header("Authorization", bearer_token)
+            .json(&body)
+            .send()
+            .await;
+        println!(
+            "emial response: {}",
+            res.unwrap()
+                .text()
+                .await
+                .expect("Cannot decode response body")
+        );
 
         Ok(())
     }

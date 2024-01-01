@@ -1,4 +1,7 @@
-use crate::{domain::{Subscriber, Email, SubscriberName}, email_client::EmailClient};
+use crate::{
+    domain::{Email, Subscriber, SubscriberName},
+    email_client::EmailClient,
+};
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::Utc;
 use sqlx::PgPool;
@@ -21,11 +24,12 @@ impl TryFrom<SubscribeFormData> for Subscriber {
 }
 
 #[post("/test")]
-async fn test(
-    email_client: web::Data<EmailClient>
-) -> impl Responder {
-    let recipient = Email::parse(String::from("miro.zaprazny8@gmail.com")).expect("Failed to parse email");
-    let res = email_client.send_email(recipient, "test email", "testing").await;
+async fn test(email_client: web::Data<EmailClient>) -> impl Responder {
+    let recipient =
+        Email::parse(String::from("miro.zaprazny8@gmail.com")).expect("Failed to parse email");
+    let res = email_client
+        .send_email(recipient, "test email", "testing")
+        .await;
 
     return HttpResponse::Ok().finish();
 }

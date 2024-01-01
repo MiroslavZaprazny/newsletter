@@ -4,7 +4,9 @@ use ::stoic_newsletter::startup::run;
 use sqlx::PgPool;
 use stoic_newsletter::{
     config::get_config,
-    telemetry::{get_subscriber, init_subscriber}, email_client::EmailClient, domain::Email,
+    domain::Email,
+    email_client::EmailClient,
+    telemetry::{get_subscriber, init_subscriber},
 };
 
 #[actix_web::main]
@@ -16,7 +18,8 @@ async fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind(address).expect("Failed to create a tcp listnener");
     // let sender = config.email_client.sender().expect("Could not get parse the sender email");
 
-    let sender = Email::parse(String::from("lawsofoutreach@gmail.com")).expect("Failed to parse email");
+    let sender =
+        Email::parse(String::from("lawsofoutreach@gmail.com")).expect("Failed to parse email");
     let code = String::from("");
     let email_client = EmailClient::new(config.email_client.url, sender, code);
     init_subscriber(get_subscriber());

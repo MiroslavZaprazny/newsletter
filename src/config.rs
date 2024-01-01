@@ -4,7 +4,7 @@ use crate::domain::Email;
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
-    pub email_client: EmailClientSettings
+    pub email_client: EmailClientSettings,
 }
 
 #[derive(serde::Deserialize, Debug)]
