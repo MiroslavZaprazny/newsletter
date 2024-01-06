@@ -77,7 +77,8 @@ impl EmailClient {
             .header("Authorization", bearer_token)
             .json(&body)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         Ok(())
     }
@@ -127,9 +128,35 @@ mod tests {
         let recipient =
             Email::parse(String::from("test12@email.com")).expect("Failed to parse email");
 
-        client
+        let res = client
             .send_email(recipient, "test email", "testing")
-            .await
-            .expect("Failed to send email");
+            .await;
+
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn send_email_fails_if_server_returns_500() {
+        let server = MockServer::start().await;
+        Mock::given(header_exists("Authorization"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("/mail/send"))
+            .and(method("POST"))
+            .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let sender = Email::parse(String::from("test@email.com")).expect("Failed to parse email");
+        let auth_code = String::from("123authcode");
+        let client = EmailClient::new(server.uri(), sender, auth_code);
+        let recipient =
+            Email::parse(String::from("test12@email.com")).expect("Failed to parse email");
+
+        let res = client
+            .send_email(recipient, "test email", "testing")
+            .await;
+
+        assert!(res.is_err());
     }
 }
