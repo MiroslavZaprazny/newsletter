@@ -29,7 +29,8 @@ async fn test(email_client: web::Data<EmailClient>) -> impl Responder {
         Email::parse(String::from("miro.zaprazny8@gmail.com")).expect("Failed to parse email");
     email_client
         .send_email(recipient, "test email", "testing")
-        .await.expect("Failed to send email");
+        .await
+        .expect("Failed to send email");
 
     HttpResponse::Ok().finish()
 }

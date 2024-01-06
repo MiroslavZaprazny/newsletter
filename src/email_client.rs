@@ -72,8 +72,7 @@ impl EmailClient {
         };
         let bearer_token = format!("Bearer {}", self.auth_code);
 
-        self
-            .client
+        self.client
             .post(url)
             .header("Authorization", bearer_token)
             .json(&body)
@@ -86,13 +85,38 @@ impl EmailClient {
 
 #[cfg(test)]
 mod tests {
-    use wiremock::{MockServer, Mock, matchers::any, ResponseTemplate};
-    use crate::{email_client::EmailClient, domain::Email};
+    use crate::{domain::Email, email_client::EmailClient};
+    use wiremock::{
+        matchers::{header, header_exists, method, path},
+        Match, Mock, MockServer, ResponseTemplate,
+    };
+
+    struct SendEmailMatcher;
+
+    impl Match for SendEmailMatcher {
+        fn matches(&self, request: &wiremock::Request) -> bool {
+            let result: Result<serde_json::Value, serde_json::Error> = request.body_json();
+            println!("body json: {:?}", result);
+            if let Ok(body) = result {
+                body.get("content").is_some()
+                    && body.get("from").is_some()
+                    && body.get("subject").is_some()
+                    && body.get("personalizations").is_some()
+            } else {
+                false
+            }
+        }
+    }
 
     #[tokio::test]
     async fn send_email_fires_a_request_to_base_url() {
         let server = MockServer::start().await;
-        Mock::given(any()).respond_with(ResponseTemplate::new(200))
+        Mock::given(header_exists("Authorization"))
+            .and(header("Content-Type", "application/json"))
+            .and(path("/mail/send"))
+            .and(method("POST"))
+            .and(SendEmailMatcher)
+            .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&server)
             .await;
@@ -100,8 +124,12 @@ mod tests {
         let sender = Email::parse(String::from("test@email.com")).expect("Failed to parse email");
         let auth_code = String::from("123authcode");
         let client = EmailClient::new(server.uri(), sender, auth_code);
-        let recipient = Email::parse(String::from("test12@email.com")).expect("Failed to parse email");
+        let recipient =
+            Email::parse(String::from("test12@email.com")).expect("Failed to parse email");
 
-        client.send_email(recipient, "test email", "testing").await;
+        client
+            .send_email(recipient, "test email", "testing")
+            .await
+            .expect("Failed to send email");
     }
 }
