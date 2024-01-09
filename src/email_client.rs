@@ -128,9 +128,7 @@ mod tests {
         let recipient =
             Email::parse(String::from("test12@email.com")).expect("Failed to parse email");
 
-        let res = client
-            .send_email(recipient, "test email", "testing")
-            .await;
+        let res = client.send_email(recipient, "test email", "testing").await;
 
         assert!(res.is_ok());
     }
@@ -153,9 +151,7 @@ mod tests {
         let recipient =
             Email::parse(String::from("test12@email.com")).expect("Failed to parse email");
 
-        let res = client
-            .send_email(recipient, "test email", "testing")
-            .await;
+        let res = client.send_email(recipient, "test email", "testing").await;
 
         assert!(res.is_err());
     }

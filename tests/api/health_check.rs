@@ -11,4 +11,3 @@ async fn test_health_check_works() {
 
     assert!(response.status().is_success())
 }
-
