@@ -1,8 +1,6 @@
 use sqlx::{Connection, PgConnection, PgPool};
-use std::net::TcpListener;
 use stoic_newsletter::config::{get_config, DatabaseSettings};
-use stoic_newsletter::email_client::EmailClient;
-use stoic_newsletter::startup::run;
+use stoic_newsletter::startup::{get_connection_pool, Application};
 use uuid::Uuid;
 
 pub struct TestApp {
@@ -11,28 +9,24 @@ pub struct TestApp {
 }
 
 pub async fn app() -> TestApp {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to create a tcp listnener");
-    let port = listener
-        .local_addr()
-        .expect("Unable to get address of listener")
-        .port();
-    let mut config = get_config().expect("Failed to retrieve app configuration");
-    config.database.database_name = Uuid::new_v4().to_string();
-    let connection_pool = configure_db(&config.database).await;
-    let sender = config
-        .email_client
-        .sender()
-        .expect("Could not get parse the sender email");
-    let auth_code = String::from("authcode123");
-    let email_client = EmailClient::new(config.email_client.url, sender, auth_code);
+    let config = {
+        let mut c = get_config().expect("Failed to read config");
+        c.database.database_name = Uuid::new_v4().to_string();
+        c.application.port = 0;
 
-    let server =
-        run(listener, connection_pool.clone(), email_client).expect("Failed to instantiate server");
-    tokio::spawn(server);
+        c
+    };
+    configure_db(&config.database).await;
+
+    let app = Application::build(config.clone())
+        .await
+        .expect("Failed to build app");
+    let address = format!("http://127.0.0.1:{}", app.port());
+    let _ = tokio::spawn(app.run_until_stopped());
 
     TestApp {
-        address: format!("http://127.0.0.1:{}", port),
-        db_pool: connection_pool,
+        address,
+        db_pool: get_connection_pool(&config.database),
     }
 }
 
