@@ -3,7 +3,60 @@ use wiremock::{Mock, matchers::{path, method}, ResponseTemplate};
 use crate::helpers::app;
 
 #[tokio::test]
-async fn testscribing_to_newsletter_works() {
+async fn test_subscribe_returns_200_for_valid_form_data() {
+    let client = reqwest::Client::new();
+    let app = app().await;
+
+    Mock::given(path("mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let response = client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body("name=le%20guin&email=ursula_le_guin%40gmail.com")
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert!(response.status().is_success());
+}
+
+#[tokio::test]
+async fn test_subscribe_persists_subscriber() {
+    let client = reqwest::Client::new();
+    let app = app().await;
+
+    Mock::given(path("mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body("name=le%20guin&email=ursula_le_guin%40gmail.com")
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    let saved = sqlx::query!("SELECT email, name, status FROM subscriptions")
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("Failed to fetch saved subscriptions.");
+
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+    assert_eq!(saved.name, "le guin");
+    assert_eq!(saved.status, "pending_confirmation");
+}
+
+#[tokio::test]
+async fn test_subscribe_send_confirmation_link() {
     let client = reqwest::Client::new();
     let app = app().await;
 
@@ -24,13 +77,10 @@ async fn testscribing_to_newsletter_works() {
 
     assert!(response.status().is_success());
 
-    let saved = sqlx::query!("SELECT email, name FROM subscriptions")
-        .fetch_one(&app.db_pool)
-        .await
-        .expect("Failed to fetch saved subscriptions.");
+    let email_requests = &app.email_server.received_requests().await.unwrap()[0];
+    let body: serde_json::Value = serde_json::from_slice(&email_requests.body).unwrap();
 
-    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
-    assert_eq!(saved.name, "le guin");
+    assert!(body.to_string().contains("http://myapi/subscriptions/confirm"));
 }
 
 #[tokio::test]

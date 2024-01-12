@@ -41,16 +41,22 @@ async fn subscribe(
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    insert_subscriber(&connection, &subscriber).await;
+    insert_subscriber(&connection, &subscriber).await.expect("Failed to insert subscriber");
 
-    if email_client
-        .send_email(subscriber.email, "test email", "testing")
-        .await
-        .is_err() {
+    if send_confirmation_email(&email_client, subscriber).await.is_err() {
             return HttpResponse::InternalServerError().finish();
         };
 
         HttpResponse::Ok().finish()
+}
+
+async fn send_confirmation_email(email_client: &EmailClient, subscriber: Subscriber) -> Result<(), reqwest::Error> {
+    let confirmation_link = "http://myapi/subscriptions/confirm";
+    let body = format!("Welcome to our newsletter <br> Click <a href={} here </a> to confirm the subscription", confirmation_link);
+
+    email_client
+        .send_email(subscriber.email, "Newsletter subscription", &body)
+        .await
 }
 
 #[tracing::instrument(
@@ -61,7 +67,7 @@ async fn insert_subscriber(pool: &PgPool, form: &Subscriber) -> Result<(), sqlx:
     sqlx::query!(
         r#"
         INSERT INTO subscriptions(id, email, name, subscribed_at, status)
-        VALUES($1, $2, $3, $4, 'confirmed')
+        VALUES($1, $2, $3, $4, 'pending_confirmation')
         "#,
         Uuid::new_v4(),
         form.email.as_ref(),
