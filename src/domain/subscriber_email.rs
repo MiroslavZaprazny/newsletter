@@ -1,5 +1,6 @@
 use validator::validate_email;
 
+#[derive(Debug)]
 pub struct Email(String);
 
 impl Email {

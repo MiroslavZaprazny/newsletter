@@ -1,9 +1,19 @@
+use wiremock::{Mock, matchers::{path, method}, ResponseTemplate};
+
 use crate::helpers::app;
 
 #[tokio::test]
-async fn test_subscribing_to_newsletter_works() {
+async fn testscribing_to_newsletter_works() {
     let client = reqwest::Client::new();
     let app = app().await;
+
+    Mock::given(path("mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
     let response = client
         .post(format!("{}/subscribe", app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")

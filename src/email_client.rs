@@ -2,6 +2,7 @@ use reqwest::Client;
 
 use crate::domain::Email;
 
+#[derive(Debug)]
 pub struct EmailClient {
     client: Client,
     url: String,

@@ -23,18 +23,6 @@ impl TryFrom<SubscribeFormData> for Subscriber {
     }
 }
 
-#[post("/test")]
-async fn test(email_client: web::Data<EmailClient>) -> impl Responder {
-    let recipient =
-        Email::parse(String::from("miro.zaprazny8@gmail.com")).expect("Failed to parse email");
-    email_client
-        .send_email(recipient, "test email", "testing")
-        .await
-        .expect("Failed to send email");
-
-    HttpResponse::Ok().finish()
-}
-
 #[post("/subscribe")]
 #[tracing::instrument(
     name = "Adding a new subscriber", skip(form, connection),
@@ -46,19 +34,23 @@ async fn test(email_client: web::Data<EmailClient>) -> impl Responder {
 async fn subscribe(
     form: web::Form<SubscribeFormData>,
     connection: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
 ) -> impl Responder {
     let subscriber = match Subscriber::try_from(form.0) {
         Ok(v) => v,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    return match insert_subscriber(&connection, &subscriber).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to save details {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        }
-    };
+    insert_subscriber(&connection, &subscriber).await;
+
+    if email_client
+        .send_email(subscriber.email, "test email", "testing")
+        .await
+        .is_err() {
+            return HttpResponse::InternalServerError().finish();
+        };
+
+        HttpResponse::Ok().finish()
 }
 
 #[tracing::instrument(
@@ -68,8 +60,8 @@ async fn subscribe(
 async fn insert_subscriber(pool: &PgPool, form: &Subscriber) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO subscriptions(id, email, name, subscribed_at)
-        VALUES($1, $2, $3, $4)
+        INSERT INTO subscriptions(id, email, name, subscribed_at, status)
+        VALUES($1, $2, $3, $4, 'confirmed')
         "#,
         Uuid::new_v4(),
         form.email.as_ref(),
