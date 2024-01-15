@@ -1,6 +1,7 @@
 use crate::{
     domain::{Email, Subscriber, SubscriberName},
     email_client::EmailClient,
+    startup::ApplicationBaseUrl,
 };
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::Utc;
@@ -35,24 +36,37 @@ async fn subscribe(
     form: web::Form<SubscribeFormData>,
     connection: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
+    base_url: web::Data<ApplicationBaseUrl>,
 ) -> impl Responder {
     let subscriber = match Subscriber::try_from(form.0) {
         Ok(v) => v,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    insert_subscriber(&connection, &subscriber).await.expect("Failed to insert subscriber");
+    insert_subscriber(&connection, &subscriber)
+        .await
+        .expect("Failed to insert subscriber");
 
-    if send_confirmation_email(&email_client, subscriber).await.is_err() {
-            return HttpResponse::InternalServerError().finish();
-        };
+    if send_confirmation_email(&email_client, subscriber, &base_url.0)
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
+    };
 
-        HttpResponse::Ok().finish()
+    HttpResponse::Ok().finish()
 }
 
-async fn send_confirmation_email(email_client: &EmailClient, subscriber: Subscriber) -> Result<(), reqwest::Error> {
-    let confirmation_link = "http://myapi/subscriptions/confirm";
-    let body = format!("Welcome to our newsletter <br> Click <a href={} here </a> to confirm the subscription", confirmation_link);
+async fn send_confirmation_email(
+    email_client: &EmailClient,
+    subscriber: Subscriber,
+    base_url: &str,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = format!("{}/subscriptions/confirm", base_url);
+    let body = format!(
+        "Welcome to our newsletter <br> Click <a href={} here </a> to confirm the subscription",
+        confirmation_link
+    );
 
     email_client
         .send_email(subscriber.email, "Newsletter subscription", &body)

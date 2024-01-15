@@ -1,4 +1,7 @@
-use wiremock::{Mock, matchers::{path, method}, ResponseTemplate};
+use wiremock::{
+    matchers::{method, path},
+    Mock, ResponseTemplate,
+};
 
 use crate::helpers::app;
 
@@ -80,7 +83,9 @@ async fn test_subscribe_send_confirmation_link() {
     let email_requests = &app.email_server.received_requests().await.unwrap()[0];
     let body: serde_json::Value = serde_json::from_slice(&email_requests.body).unwrap();
 
-    assert!(body.to_string().contains("http://myapi/subscriptions/confirm"));
+    assert!(body
+        .to_string()
+        .contains("http://myapi/subscriptions/confirm"));
 }
 
 #[tokio::test]

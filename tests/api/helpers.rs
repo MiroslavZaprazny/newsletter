@@ -7,7 +7,7 @@ use wiremock::MockServer;
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
-    pub email_server: MockServer
+    pub email_server: MockServer,
 }
 
 pub async fn app() -> TestApp {
@@ -32,7 +32,7 @@ pub async fn app() -> TestApp {
     TestApp {
         address,
         db_pool: get_connection_pool(&config.database),
-        email_server
+        email_server,
     }
 }
 
