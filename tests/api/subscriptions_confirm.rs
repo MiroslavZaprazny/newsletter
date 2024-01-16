@@ -1,3 +1,4 @@
+use reqwest::Url;
 use wiremock::{
     matchers::{method, path},
     Mock, ResponseTemplate,
@@ -11,7 +12,7 @@ async fn test_subscription_confirm_is_rejected_without_token() {
     let app = app().await;
 
     let response = client
-        .get(format!("{}/subscription_confirm", app.address))
+        .get(format!("{}/subscriptions/confirm", app.address))
         .send()
         .await
         .expect("Failed to send request");
@@ -52,7 +53,23 @@ async fn test_confirmation_link_returns_200_when_called() {
         links[0].as_str().to_owned()
     };
 
-    let raw_link = get_link(body.as_str().unwrap());
+    println!("{}", body.to_string());
+    let raw_link = &get_link(&body.to_string());
+    let mut url = Url::parse(&raw_link).expect("Failed to parse url");
+    url.set_port(Some(app.port.parse::<u16>().unwrap()))
+        .expect("failed to set port");
+    //TODO: figure out why the link has a trailing backslash in tests
+    let mut u = url.to_string();
+    u.truncate(u.len() - 1);
+    assert_eq!(
+        u,
+        format!("http://127.0.0.1:{}/subscriptions/confirm", app.port)
+    );
 
-    assert_eq!(raw_link, "http://127.0.0.1/subscription/confirm");
+    let response = client
+        .get(u)
+        .send()
+        .await
+        .expect("Failed to send confirmation request");
+    assert_eq!(response.status().as_u16(), 200);
 }

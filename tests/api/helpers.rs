@@ -6,6 +6,7 @@ use wiremock::MockServer;
 
 pub struct TestApp {
     pub address: String,
+    pub port: String,
     pub db_pool: PgPool,
     pub email_server: MockServer,
 }
@@ -27,10 +28,12 @@ pub async fn app() -> TestApp {
         .await
         .expect("Failed to build app");
     let address = format!("http://127.0.0.1:{}", app.port());
+    let port = app.port();
     let _ = tokio::spawn(app.run_until_stopped());
 
     TestApp {
         address,
+        port,
         db_pool: get_connection_pool(&config.database),
         email_server,
     }

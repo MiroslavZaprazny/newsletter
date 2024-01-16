@@ -43,14 +43,13 @@ async fn subscribe(
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    insert_subscriber(&connection, &subscriber)
-        .await
-        .expect("Failed to insert subscriber");
+    if insert_subscriber(&connection, &subscriber).await.is_err() {
+        return HttpResponse::InternalServerError().finish();
+    }
 
-    if send_confirmation_email(&email_client, subscriber, &base_url.0)
-        .await
-        .is_err()
-    {
+    let res = send_confirmation_email(&email_client, subscriber, &base_url.0).await;
+    if res.is_err() {
+        tracing::error!("Failed to send email {:?}", res);
         return HttpResponse::InternalServerError().finish();
     };
 
@@ -64,7 +63,7 @@ async fn send_confirmation_email(
 ) -> Result<(), reqwest::Error> {
     let confirmation_link = format!("{}/subscriptions/confirm", base_url);
     let body = format!(
-        "Welcome to our newsletter <br> Click <a href={} here </a> to confirm the subscription",
+        "Welcome to our newsletter <br> Click <a href=\"{}\"here</a> to confirm the subscription",
         confirmation_link
     );
 
