@@ -1,3 +1,4 @@
+use reqwest::Url;
 use sqlx::{Connection, PgConnection, PgPool};
 use stoic_newsletter::config::{get_config, DatabaseSettings};
 use stoic_newsletter::startup::{get_connection_pool, Application};
@@ -9,6 +10,30 @@ pub struct TestApp {
     pub port: String,
     pub db_pool: PgPool,
     pub email_server: MockServer,
+}
+
+impl TestApp {
+    pub fn get_confirmation_link(&self, email_request: &wiremock::Request) -> String {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            links[0].as_str().to_owned()
+        };
+
+        let raw_link = &get_link(&body.to_string());
+        let mut url = Url::parse(&raw_link).expect("Failed to parse url");
+        url.set_port(Some(self.port.parse::<u16>().unwrap()))
+            .expect("failed to set port");
+        //TODO: figure out why the link has a trailing backslash in tests
+        let mut u = url.to_string();
+        u.truncate(u.len() - 1);
+
+        u
+    }
 }
 
 pub async fn app() -> TestApp {

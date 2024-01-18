@@ -85,7 +85,7 @@ async fn test_subscribe_send_confirmation_link() {
 
     assert!(body
         .to_string()
-        .contains("http://myapi/subscriptions/confirm"));
+        .contains("http://127.0.0.1/subscriptions/confirm?subscription_token="));
 }
 
 #[tokio::test]

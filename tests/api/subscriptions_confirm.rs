@@ -21,6 +21,54 @@ async fn test_subscription_confirm_is_rejected_without_token() {
 }
 
 #[tokio::test]
+async fn test_click_on_the_confirmation_link_confirms_the_subscriber() {
+    let client = reqwest::Client::new();
+    let app = app().await;
+
+    Mock::given(path("mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let response = client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body("name=le%20guin&email=ursula_le_guin%40gmail.com")
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert!(response.status().is_success());
+
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    let link = app.get_confirmation_link(&email_request);
+    assert_eq!(
+        link,
+        format!(
+            "http://127.0.0.1:{}/subscriptions/confirm?subscription_token=mytoken",
+            app.port
+        )
+    );
+
+    client
+        .get(link)
+        .send()
+        .await
+        .expect("Failed to send confirmation request");
+
+    let saved = sqlx::query!("SELECT email, name, status FROM subscriptions")
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("Failed to fetch subscriber");
+
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+    assert_eq!(saved.name, "le guin");
+    assert_eq!(saved.status, "confirmed");
+}
+
+#[tokio::test]
 async fn test_confirmation_link_returns_200_when_called() {
     let client = reqwest::Client::new();
     let app = app().await;
@@ -42,32 +90,18 @@ async fn test_confirmation_link_returns_200_when_called() {
 
     assert!(response.status().is_success());
 
-    let email_requests = &app.email_server.received_requests().await.unwrap()[0];
-    let body: serde_json::Value = serde_json::from_slice(&email_requests.body).unwrap();
-    let get_link = |s: &str| {
-        let links: Vec<_> = linkify::LinkFinder::new()
-            .links(s)
-            .filter(|l| *l.kind() == linkify::LinkKind::Url)
-            .collect();
-        assert_eq!(links.len(), 1);
-        links[0].as_str().to_owned()
-    };
-
-    println!("{}", body.to_string());
-    let raw_link = &get_link(&body.to_string());
-    let mut url = Url::parse(&raw_link).expect("Failed to parse url");
-    url.set_port(Some(app.port.parse::<u16>().unwrap()))
-        .expect("failed to set port");
-    //TODO: figure out why the link has a trailing backslash in tests
-    let mut u = url.to_string();
-    u.truncate(u.len() - 1);
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    let link = app.get_confirmation_link(&email_request);
     assert_eq!(
-        u,
-        format!("http://127.0.0.1:{}/subscriptions/confirm", app.port)
+        link,
+        format!(
+            "http://127.0.0.1:{}/subscriptions/confirm?subscription_token=mytoken",
+            app.port
+        )
     );
 
     let response = client
-        .get(u)
+        .get(link)
         .send()
         .await
         .expect("Failed to send confirmation request");
