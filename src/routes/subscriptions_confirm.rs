@@ -1,6 +1,6 @@
 use actix_web::{
     get,
-    web::{self, Query},
+    web::{self},
     HttpResponse,
 };
 use sqlx::PgPool;

@@ -44,13 +44,10 @@ async fn test_click_on_the_confirmation_link_confirms_the_subscriber() {
 
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
     let link = app.get_confirmation_link(&email_request);
-    assert_eq!(
-        link,
-        format!(
-            "http://127.0.0.1:{}/subscriptions/confirm?subscription_token=mytoken",
-            app.port
-        )
-    );
+    assert!(link.contains(&format!(
+        "http://127.0.0.1:{}/subscriptions/confirm?subscription_token=",
+        app.port
+    )));
 
     client
         .get(link)
@@ -92,13 +89,10 @@ async fn test_confirmation_link_returns_200_when_called() {
 
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
     let link = app.get_confirmation_link(&email_request);
-    assert_eq!(
-        link,
-        format!(
-            "http://127.0.0.1:{}/subscriptions/confirm?subscription_token=mytoken",
-            app.port
-        )
-    );
+    assert!(link.contains(&format!(
+        "http://127.0.0.1:{}/subscriptions/confirm?subscription_token=",
+        app.port
+    )));
 
     let response = client
         .get(link)

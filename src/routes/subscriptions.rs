@@ -49,14 +49,14 @@ async fn subscribe(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
     let token = generate_subscription_token();
-    if store_token(&connection, subscriber_id, token)
+    if store_token(&connection, subscriber_id, &token)
         .await
         .is_err()
     {
         return HttpResponse::InternalServerError().finish();
     }
 
-    let res = send_confirmation_email(&email_client, subscriber, &base_url.0, "mytoken").await;
+    let res = send_confirmation_email(&email_client, subscriber, &base_url.0, &token).await;
     if res.is_err() {
         tracing::error!("Failed to send email {:?}", res);
         return HttpResponse::InternalServerError().finish();
@@ -123,7 +123,7 @@ fn generate_subscription_token() -> String {
 async fn store_token(
     db_pool: &PgPool,
     subscriber_id: Uuid,
-    token: String,
+    token: &str,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"INSERT INTO subscription_tokens (subscription_token, subscriber_id)
