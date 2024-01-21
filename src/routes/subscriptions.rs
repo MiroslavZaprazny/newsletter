@@ -9,6 +9,8 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
+const UNIQUE_CONSTRAINT_VIOLATION_CODE: &str = "23505";
+
 #[derive(serde::Deserialize, Debug)]
 struct SubscribeFormData {
     name: String,
@@ -51,7 +53,14 @@ async fn subscribe(
 
     let subscriber_id = match insert_subscriber(&mut transaction, &subscriber).await {
         Ok(subscriber_id) => subscriber_id,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(e) => {
+            if let sqlx::Error::Database(e) = e {
+                if *UNIQUE_CONSTRAINT_VIOLATION_CODE.to_string() == e.code().unwrap() {
+                    return HttpResponse::Conflict().finish();
+                }
+            }
+            return HttpResponse::InternalServerError().finish();
+        }
     };
     let token = generate_subscription_token();
     if store_token(&mut transaction, subscriber_id, &token)

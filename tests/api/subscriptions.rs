@@ -1,3 +1,6 @@
+use chrono::Utc;
+use sqlx::Executor;
+use uuid::Uuid;
 use wiremock::{
     matchers::{method, path},
     Mock, ResponseTemplate,
@@ -140,4 +143,34 @@ async fn test_subscribing_to_newsletter_with_invalid_data_returns_400() {
             .expect("failed to decode request body");
         assert_eq!(body, case.error);
     }
+}
+
+#[tokio::test]
+async fn test_subscribing_with_existing_email_returns_409() {
+    let client = reqwest::Client::new();
+    let app = app().await;
+
+    sqlx::query!(
+        r#"
+        INSERT INTO subscriptions(id, email, name, subscribed_at, status)
+        VALUES($1, $2, $3, $4, 'pending_confirmation')
+        "#,
+        Uuid::new_v4(),
+        "test@email.com",
+        "test",
+        Utc::now()
+    )
+    .execute(&app.db_pool)
+    .await
+    .expect("Failed to seed data");
+
+    let response = client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body("name=le%20guin&email=test%40email.com")
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert_eq!(response.status().as_u16(), 409);
 }
