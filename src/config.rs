@@ -90,7 +90,7 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
     let enviroment: Enviroment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| {
             "local"
-                .try_into()
+                .into()
                 .expect("Failed to parse local enviroment")
         })
         .try_into()
