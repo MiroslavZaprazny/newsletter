@@ -54,13 +54,10 @@ async fn subscribe(
     let subscriber_id = match insert_subscriber(&mut transaction, &subscriber).await {
         Ok(subscriber_id) => subscriber_id,
         Err(e) => {
-            match e {
-                sqlx::Error::Database(e) => {
-                    if UNIQUE_CONSTRAINT_VIOLATION_CODE.to_string() == e.code().unwrap() {
-                        return HttpResponse::Conflict().finish();
-                    }
+            if let sqlx::Error::Database(e) = e {
+                if *UNIQUE_CONSTRAINT_VIOLATION_CODE.to_string() == e.code().unwrap() {
+                    return HttpResponse::Conflict().finish();
                 }
-                _ => {}
             }
             return HttpResponse::InternalServerError().finish();
         }
