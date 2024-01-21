@@ -11,6 +11,11 @@ use uuid::Uuid;
 
 const UNIQUE_CONSTRAINT_VIOLATION_CODE: &str = "23505";
 
+enum SubscriberError {
+    DuplicateEmail,
+    DatabaseFailure,
+}
+
 #[derive(serde::Deserialize, Debug)]
 struct SubscribeFormData {
     name: String,
@@ -54,10 +59,8 @@ async fn subscribe(
     let subscriber_id = match insert_subscriber(&mut transaction, &subscriber).await {
         Ok(subscriber_id) => subscriber_id,
         Err(e) => {
-            if let sqlx::Error::Database(e) = e {
-                if *UNIQUE_CONSTRAINT_VIOLATION_CODE.to_string() == e.code().unwrap() {
-                    return HttpResponse::Conflict().finish();
-                }
+            if let SubscriberError::DuplicateEmail = e {
+                return HttpResponse::Conflict().finish();
             }
             return HttpResponse::InternalServerError().finish();
         }
@@ -110,9 +113,9 @@ async fn send_confirmation_email(
 async fn insert_subscriber(
     transaction: &mut Transaction<'_, Postgres>,
     form: &Subscriber,
-) -> Result<Uuid, sqlx::Error> {
+) -> Result<Uuid, SubscriberError> {
     let subscriber_id = Uuid::new_v4();
-    sqlx::query!(
+    let result = sqlx::query!(
         r#"
         INSERT INTO subscriptions(id, email, name, subscribed_at, status)
         VALUES($1, $2, $3, $4, 'pending_confirmation')
@@ -123,11 +126,16 @@ async fn insert_subscriber(
         Utc::now()
     )
     .execute(&mut **transaction)
-    .await
-    .map_err(|e| {
+    .await;
+
+    if let Err(sqlx::Error::Database(e)) = result {
         tracing::error!("Failed to execute query {:?}", e);
-        e
-    })?;
+        if *UNIQUE_CONSTRAINT_VIOLATION_CODE.to_string() == e.code().unwrap() {
+            return Err(SubscriberError::DuplicateEmail);
+        }
+
+        return Err(SubscriberError::DatabaseFailure);
+    }
 
     Ok(subscriber_id)
 }
