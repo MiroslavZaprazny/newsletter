@@ -1,10 +1,13 @@
-#[derive(serde::Deserialize, Debug)]
+use crate::domain::Email;
+
+#[derive(serde::Deserialize, Clone)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
+    pub email_client: EmailClientSettings,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
@@ -14,10 +17,18 @@ pub struct DatabaseSettings {
     pub require_ssl: bool,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 pub struct ApplicationSettings {
     pub host: String,
     pub port: u16,
+    pub base_url: String,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct EmailClientSettings {
+    pub url: String,
+    pub sender: String,
+    pub auth_code: String,
 }
 
 pub enum Enviroment {
@@ -44,6 +55,12 @@ impl DatabaseSettings {
             "postgres://{}:{}@{}:{}",
             self.username, self.password, self.host, self.port
         )
+    }
+}
+
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<Email, String> {
+        Email::parse(self.sender.clone())
     }
 }
 

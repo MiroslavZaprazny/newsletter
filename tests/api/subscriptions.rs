@@ -1,30 +1,75 @@
-use sqlx::{Connection, PgConnection, PgPool};
-use std::net::TcpListener;
-use stoic_newsletter::config::{get_config, DatabaseSettings};
-use stoic_newsletter::startup::run;
-use uuid::Uuid;
+use wiremock::{
+    matchers::{method, path},
+    Mock, ResponseTemplate,
+};
 
-pub struct TestApp {
-    pub address: String,
-    pub db_pool: PgPool,
-}
+use crate::helpers::app;
 
 #[tokio::test]
-async fn test_health_check_works() {
-    let client = reqwest::Client::new();
-    let response = client
-        .get(format!("{}/health-check", app().await.address))
-        .send()
-        .await
-        .expect("Failed to execute request");
-
-    assert!(response.status().is_success())
-}
-
-#[tokio::test]
-async fn test_subscribing_to_newsletter_works() {
+async fn test_subscribe_returns_200_for_valid_form_data() {
     let client = reqwest::Client::new();
     let app = app().await;
+
+    Mock::given(path("mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let response = client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body("name=le%20guin&email=ursula_le_guin%40gmail.com")
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    assert!(response.status().is_success());
+}
+
+#[tokio::test]
+async fn test_subscribe_persists_subscriber() {
+    let client = reqwest::Client::new();
+    let app = app().await;
+
+    Mock::given(path("mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    client
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body("name=le%20guin&email=ursula_le_guin%40gmail.com")
+        .send()
+        .await
+        .expect("Failed to send request");
+
+    let saved = sqlx::query!("SELECT email, name, status FROM subscriptions")
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("Failed to fetch saved subscriptions.");
+
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+    assert_eq!(saved.name, "le guin");
+    assert_eq!(saved.status, "pending_confirmation");
+}
+
+#[tokio::test]
+async fn test_subscribe_send_confirmation_link() {
+    let client = reqwest::Client::new();
+    let app = app().await;
+
+    Mock::given(path("mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
     let response = client
         .post(format!("{}/subscribe", app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -35,13 +80,12 @@ async fn test_subscribing_to_newsletter_works() {
 
     assert!(response.status().is_success());
 
-    let saved = sqlx::query!("SELECT email, name FROM subscriptions")
-        .fetch_one(&app.db_pool)
-        .await
-        .expect("Failed to fetch saved subscriptions.");
+    let email_requests = &app.email_server.received_requests().await.unwrap()[0];
+    let body: serde_json::Value = serde_json::from_slice(&email_requests.body).unwrap();
 
-    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
-    assert_eq!(saved.name, "le guin");
+    assert!(body
+        .to_string()
+        .contains("http://127.0.0.1/subscriptions/confirm?subscription_token="));
 }
 
 #[tokio::test]
@@ -96,45 +140,4 @@ async fn test_subscribing_to_newsletter_with_invalid_data_returns_400() {
             .expect("failed to decode request body");
         assert_eq!(body, case.error);
     }
-}
-
-async fn app() -> TestApp {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to create a tcp listnener");
-    let port = listener
-        .local_addr()
-        .expect("Unable to get address of listener")
-        .port();
-    let mut config = get_config().expect("Failed to retrieve app configuration");
-    config.database.database_name = Uuid::new_v4().to_string();
-    let connection_pool = configure_db(&config.database).await;
-
-    let server = run(listener, connection_pool.clone()).expect("Failed to instantiate server");
-    tokio::spawn(server);
-
-    TestApp {
-        address: format!("http://127.0.0.1:{}", port),
-        db_pool: connection_pool,
-    }
-}
-
-pub async fn configure_db(settings: &DatabaseSettings) -> PgPool {
-    let mut connection = PgConnection::connect(&settings.without_db())
-        .await
-        .expect("failed to connect to db");
-
-    sqlx::query(format!(r#"CREATE DATABASE "{}";"#, settings.database_name).as_str())
-        .execute(&mut connection)
-        .await
-        .expect("Failed to create test db");
-
-    let connection_pool = PgPool::connect(&settings.without_db())
-        .await
-        .expect("Failed to connect to db");
-
-    sqlx::migrate!("./migrations")
-        .run(&connection_pool)
-        .await
-        .expect("Failed to execute migrations");
-
-    connection_pool
 }
