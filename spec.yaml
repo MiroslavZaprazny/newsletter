@@ -34,7 +34,7 @@ services:
       - key: APP_APPLICATION__BASE_URL
         scope: RUN_TIME
         value: ${APP_URL}
-      - key: APP_ENVIROMENT
+      - key: env
         scope: RUN_TIME
         value: production
 databases:
