@@ -1,4 +1,4 @@
-use stoic_newsletter::{
+use newsletter::{
     config::get_config,
     startup::Application,
     telemetry::{get_subscriber, init_subscriber},
