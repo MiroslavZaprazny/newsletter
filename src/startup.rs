@@ -1,7 +1,9 @@
 use crate::config::{DatabaseSettings, Settings};
-use crate::domain::Email;
 use crate::email_client::EmailClient;
-use crate::routes::{health_check, subscribe, subscription_confirm};
+use crate::routes::delivery::delivery;
+use crate::routes::health_check::health_check;
+use crate::routes::subscriptions::subscribe;
+use crate::routes::subscriptions_confirm::subscription_confirm;
 use actix_web::dev::Server;
 use actix_web::web::Data;
 use actix_web::{web, App, HttpServer};
@@ -19,11 +21,12 @@ pub struct ApplicationBaseUrl(pub String);
 
 impl Application {
     pub async fn build(config: Settings) -> Result<Self, std::io::Error> {
-        // let sender = config.email_client.sender().expect("Could not get parse the sender email");
-        let sender =
-            Email::parse(String::from("lawsofoutreach@gmail.com")).expect("Failed to parse email");
-        let code = String::from("");
-        let email_client = EmailClient::new(config.email_client.url, sender, code);
+        let sender = config
+            .email_client
+            .sender()
+            .expect("Could not get parse the sender email");
+        let auth_code = config.email_client.auth_code;
+        let email_client = EmailClient::new(config.email_client.url, sender, auth_code);
 
         let connection_pool = get_connection_pool(&config.database);
         let address = format!("{}:{}", config.application.host, config.application.port);
@@ -68,6 +71,7 @@ pub fn run(
             .service(health_check)
             .service(subscribe)
             .service(subscription_confirm)
+            .service(delivery)
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())

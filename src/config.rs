@@ -1,6 +1,6 @@
 use crate::domain::Email;
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
@@ -24,7 +24,7 @@ pub struct ApplicationSettings {
     pub base_url: String,
 }
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct EmailClientSettings {
     pub url: String,
     pub sender: String,
