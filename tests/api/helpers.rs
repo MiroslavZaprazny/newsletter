@@ -3,7 +3,7 @@ use newsletter::config::{get_config, DatabaseSettings};
 use newsletter::domain::{Email, Subscriber, SubscriberName};
 use newsletter::startup::{get_connection_pool, Application};
 use reqwest::Url;
-use sqlx::{Connection, PgConnection, PgPool};
+use sqlx::{Connection, PgConnection, PgPool, Executor};
 use uuid::Uuid;
 use wiremock::MockServer;
 
@@ -37,7 +37,7 @@ impl TestApp {
         u
     }
 
-    pub async fn seed_subscriber(&self) -> Subscriber {
+    pub async fn seed_subscriber(&self, status: String) -> Subscriber {
         let subscriber = Subscriber {
             name: SubscriberName::parse(String::from("testsubscribername"))
                 .expect("Failed to parse testing name"),
@@ -48,18 +48,31 @@ impl TestApp {
         sqlx::query!(
             r#"
         INSERT INTO subscriptions(id, email, name, subscribed_at, status)
-        VALUES($1, $2, $3, $4, 'pending_confirmation')
+        VALUES($1, $2, $3, $4, $5)
         "#,
             Uuid::new_v4(),
             subscriber.email.as_ref(),
             subscriber.name.as_ref(),
-            Utc::now()
+            Utc::now(),
+            status,
         )
         .execute(&self.db_pool)
         .await
         .expect("Failed to seed subscriber");
 
         return subscriber;
+    }
+
+    pub async fn seed_user(&self) -> (String, String) {
+        let username = Uuid::new_v4().to_string();
+        let password = Uuid::new_v4().to_string();
+        sqlx::query!("INSERT INTO users(id, username, password) VALUES ($1, $2, $3)",
+            Uuid::new_v4(),
+            username,
+            password,
+        ).execute(&self.db_pool).await.expect("Failed to seed user");
+
+        return (username, password);
     }
 }
 
