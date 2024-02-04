@@ -1,10 +1,9 @@
 use actix_web::http::header::HeaderMap;
 use actix_web::{post, web, HttpRequest, HttpResponse};
-use argon2::{Argon2, Algorithm, Params};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use base64::engine::general_purpose;
 use base64::Engine;
 use reqwest::header::{self, HeaderValue};
-use sha3::{Digest, Sha3_256};
 use sqlx::PgPool;
 
 use crate::{
@@ -46,7 +45,10 @@ async fn delivery(
         }
     };
 
-    if validate_credentials(credentials, &connection).await.is_err() {
+    if validate_credentials(credentials, &connection)
+        .await
+        .is_err()
+    {
         return HttpResponse::Unauthorized()
             .insert_header((header::WWW_AUTHENTICATE, realm))
             .finish();
@@ -96,7 +98,7 @@ fn basic_auth(headers: &HeaderMap) -> Result<Credentials, AuthError> {
         Err(_) => return Err(AuthError::InvalidValue),
     };
 
-    let mut credentials = decoded_credentials.splitn(2, ":");
+    let mut credentials = decoded_credentials.splitn(2, ':');
 
     let username = match credentials.next() {
         Some(v) => v.to_string(),
@@ -111,20 +113,33 @@ fn basic_auth(headers: &HeaderMap) -> Result<Credentials, AuthError> {
     Ok(Credentials { username, password })
 }
 
-async fn validate_credentials(credentials: Credentials, connection: &PgPool) -> Result<(), AuthError> {
-    let hasher = Argon2::new(
-        Algorithm::Argon2id,
-        argon2::Version::V0x13,
-        Params::new(15000, 2, 1, None).unwrap(),
-    );
-    if sqlx::query!(
-        "SELECT id FROM users WHERE username = $1 AND password = $2",
+async fn validate_credentials(
+    credentials: Credentials,
+    connection: &PgPool,
+) -> Result<(), AuthError> {
+    let row = sqlx::query!(
+        "SELECT password FROM users WHERE username = $1",
         credentials.username,
     )
-        .fetch_one(connection)
-        .await.is_err() {
-            return Err(AuthError::InvalidValue);
+    .fetch_one(connection)
+    .await;
+
+    let password = match row {
+        Ok(r) => r.password,
+        Err(_) => return Err(AuthError::InvalidValue),
     };
+
+    let password = match PasswordHash::new(&password) {
+        Ok(v) => v,
+        Err(_) => return Err(AuthError::InvalidValue),
+    };
+
+    if Argon2::default()
+        .verify_password(credentials.password.as_bytes(), &password)
+        .is_err()
+    {
+        return Err(AuthError::InvalidValue);
+    }
 
     Ok(())
 }

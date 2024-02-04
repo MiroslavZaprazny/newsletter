@@ -1,9 +1,13 @@
+use std::thread;
+
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher};
 use chrono::Utc;
 use newsletter::config::{get_config, DatabaseSettings};
 use newsletter::domain::{Email, Subscriber, SubscriberName};
 use newsletter::startup::{get_connection_pool, Application};
 use reqwest::Url;
-use sqlx::{Connection, PgConnection, PgPool, Executor};
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
 
@@ -64,13 +68,22 @@ impl TestApp {
     }
 
     pub async fn seed_user(&self) -> (String, String) {
-        let username = Uuid::new_v4().to_string();
-        let password = Uuid::new_v4().to_string();
-        sqlx::query!("INSERT INTO users(id, username, password) VALUES ($1, $2, $3)",
+        let username = String::from("jakoo12");
+        let password = String::from("testicek1332321");
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::default()
+            .hash_password(password.as_bytes(), &salt)
+            .expect("Failed to seed password")
+            .to_string();
+        sqlx::query!(
+            "INSERT INTO users(id, username, password) VALUES ($1, $2, $3)",
             Uuid::new_v4(),
             username,
-            password,
-        ).execute(&self.db_pool).await.expect("Failed to seed user");
+            password_hash,
+        )
+        .execute(&self.db_pool)
+        .await
+        .expect("Failed to seed user");
 
         return (username, password);
     }
