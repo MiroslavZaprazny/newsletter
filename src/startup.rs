@@ -2,6 +2,8 @@ use crate::config::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
 use crate::routes::delivery::delivery;
 use crate::routes::health_check::health_check;
+use crate::routes::index::index;
+use crate::routes::login::{login, login_page};
 use crate::routes::subscriptions::subscribe;
 use crate::routes::subscriptions_confirm::subscription_confirm;
 use actix_web::dev::Server;
@@ -72,6 +74,9 @@ pub fn run(
             .service(subscribe)
             .service(subscription_confirm)
             .service(delivery)
+            .service(index)
+            .service(login)
+            .service(login_page)
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
