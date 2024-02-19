@@ -1,5 +1,4 @@
 use chrono::Utc;
-use sqlx::Executor;
 use uuid::Uuid;
 use wiremock::{
     matchers::{method, path},

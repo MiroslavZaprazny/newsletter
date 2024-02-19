@@ -1,7 +1,13 @@
+use std::thread;
+
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher};
+use chrono::Utc;
+use newsletter::config::{get_config, DatabaseSettings};
+use newsletter::domain::{Email, Subscriber, SubscriberName};
+use newsletter::startup::{get_connection_pool, Application};
 use reqwest::Url;
-use sqlx::{Connection, PgConnection, PgPool};
-use stoic_newsletter::config::{get_config, DatabaseSettings};
-use stoic_newsletter::startup::{get_connection_pool, Application};
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
 
@@ -33,6 +39,53 @@ impl TestApp {
         u.truncate(u.len() - 1);
 
         u
+    }
+
+    pub async fn seed_subscriber(&self, status: String) -> Subscriber {
+        let subscriber = Subscriber {
+            name: SubscriberName::parse(String::from("testsubscribername"))
+                .expect("Failed to parse testing name"),
+            email: Email::parse(String::from("testemail@email.com"))
+                .expect("Failed to parse testing email"),
+        };
+
+        sqlx::query!(
+            r#"
+        INSERT INTO subscriptions(id, email, name, subscribed_at, status)
+        VALUES($1, $2, $3, $4, $5)
+        "#,
+            Uuid::new_v4(),
+            subscriber.email.as_ref(),
+            subscriber.name.as_ref(),
+            Utc::now(),
+            status,
+        )
+        .execute(&self.db_pool)
+        .await
+        .expect("Failed to seed subscriber");
+
+        return subscriber;
+    }
+
+    pub async fn seed_user(&self) -> (String, String) {
+        let username = String::from("jakoo12");
+        let password = String::from("testicek1332321");
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::default()
+            .hash_password(password.as_bytes(), &salt)
+            .expect("Failed to seed password")
+            .to_string();
+        sqlx::query!(
+            "INSERT INTO users(id, username, password) VALUES ($1, $2, $3)",
+            Uuid::new_v4(),
+            username,
+            password_hash,
+        )
+        .execute(&self.db_pool)
+        .await
+        .expect("Failed to seed user");
+
+        return (username, password);
     }
 }
 

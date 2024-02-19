@@ -1,6 +1,6 @@
 use crate::domain::Email;
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
@@ -24,7 +24,7 @@ pub struct ApplicationSettings {
     pub base_url: String,
 }
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct EmailClientSettings {
     pub url: String,
     pub sender: String,
@@ -95,8 +95,6 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
         })
         .try_into()
         .expect("Failed to parse APP_ENVIROMENT");
-
-    println!("env: {:?}", enviroment.as_str());
 
     let env_file = format!("{}.yaml", enviroment.as_str());
     let settings = config::Config::builder()

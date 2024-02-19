@@ -8,5 +8,5 @@ database:
   database_name: "newsletter"
 email_client:
   url: https://api.sendgrid.com/v3
-  sender: "test@email.com"
+  sender: lawsofoutreach@gmail.com
   auth_code: "none"

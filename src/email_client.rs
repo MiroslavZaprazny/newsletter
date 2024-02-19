@@ -98,7 +98,6 @@ mod tests {
     impl Match for SendEmailMatcher {
         fn matches(&self, request: &wiremock::Request) -> bool {
             let result: Result<serde_json::Value, serde_json::Error> = request.body_json();
-            println!("body json: {:?}", result);
             if let Ok(body) = result {
                 body.get("content").is_some()
                     && body.get("from").is_some()

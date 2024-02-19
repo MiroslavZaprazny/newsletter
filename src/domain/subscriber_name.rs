@@ -1,5 +1,6 @@
 use unicode_segmentation::UnicodeSegmentation;
 
+#[derive(Debug)]
 pub struct SubscriberName(String);
 
 impl SubscriberName {
@@ -10,7 +11,6 @@ impl SubscriberName {
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
         let contains_invalid_chars = s.chars().any(|g| forbidden_characters.contains(&g));
 
-        println!("name: {}, isempty{}", s, is_empty);
         if is_empty || is_too_long || contains_invalid_chars {
             return Err(format!("{} is not a valid subscriber name", s));
         }

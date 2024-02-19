@@ -4,5 +4,3 @@ database:
   require_ssl: true
 email_client:
   url: https://api.sendgrid.com/v3
-  sender: lawsofoutreach@gmail.com
-
