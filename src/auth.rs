@@ -1,7 +1,7 @@
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use sqlx::PgPool;
 use actix_web::http::header::HeaderMap;
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use base64::{engine::general_purpose, Engine};
+use sqlx::PgPool;
 
 pub struct Credentials {
     pub username: String,
@@ -43,7 +43,6 @@ pub async fn validate_credentials(
 
     Ok(id)
 }
-
 
 pub fn basic_auth(headers: &HeaderMap) -> Result<Credentials, AuthError> {
     let auth_header = match headers.get("Authorization") {

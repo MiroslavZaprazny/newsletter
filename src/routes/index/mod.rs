@@ -1,4 +1,4 @@
-use actix_web::{get, Responder, HttpResponse, http::header::ContentType};
+use actix_web::{get, http::header::ContentType, HttpResponse, Responder};
 
 #[get("/")]
 async fn index() -> impl Responder {
